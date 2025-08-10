@@ -2,6 +2,9 @@
 
 GAI - Gene Analysis & Insights is a new web-based data base. Here you can find anything you want to know about genes via intuitive GUI, construct a dataset using flexible filters, and download it for data analysis.
 
+# Slides 
+https://docs.google.com/presentation/d/1j26GRkcvjXyTL92XRa1G6PbNeqQcJMntJn5jwupUzL4/edit?usp=sharing 
+
 ## Integrated data bases
 GAI integrated the most valueable knowledge from a number of comprehensive data bases:
 

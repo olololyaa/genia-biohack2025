@@ -17,10 +17,12 @@ joblib==1.5.1
 jsonschema==4.25.0
 jsonschema-specifications==2025.4.1
 kiwisolver==1.4.8
+llvmlite==0.44.0
 MarkupSafe==3.0.2
 matplotlib==3.10.5
 narwhals==2.0.1
-numpy==2.3.2
+numba==0.61.2
+numpy==2.2.6
 packaging==25.0
 pandas==2.3.1
 pi==0.1.2
@@ -28,6 +30,7 @@ pillow==11.3.0
 protobuf==6.31.1
 pyarrow==21.0.0
 pydeck==0.9.1
+pynndescent==0.5.13
 pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
@@ -44,8 +47,10 @@ tenacity==9.1.2
 threadpoolctl==3.6.0
 toml==0.10.2
 tornado==6.5.1
+tqdm==4.67.1
 typing_extensions==4.14.1
 tzdata==2025.2
 umap==0.1.1
+umap-learn==0.5.9.post2
 urllib3==2.5.0
 watchdog==6.0.0
