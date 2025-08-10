@@ -217,6 +217,16 @@ with gene_tab:
                     for stat in stats:
                         create_violin_plot(gene_symbols_for_plot, plot_df=enriched_gene_stats, stat=stat, features=features)
 
+            with st.expander("Selected Genes on Сhromosomes"):
+                # Upload gene_info\db_paralogues_ortholog_mouse.csv
+                dtypes = {i: 'str' for i in range(13)}
+                db_paralogues_path = Path("gene_info/db_paralogues_ortholog_mouse.csv")
+                db_paralogues_mouse = pd.read_csv(db_paralogues_path, dtype=dtypes, usecols=[0, 7])
+                db_paralogues_mouse.drop_duplicates('Gene stable ID', inplace=True)
+                # get list of ensembl_gene_ids based on selected_genes list:
+                selected_genes_ens = sel_rows['ensembl_gene_id']
+                plot_count_genes_on_chromosomes(selected_genes_ens, db_paralogues_mouse)
+
 
 with about_tab:
     try:

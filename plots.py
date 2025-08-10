@@ -71,3 +71,35 @@ def create_violin_plot(gene_symbols_for_plot: list[str], plot_df: pd.DataFrame, 
     sns.despine(ax=ax)
     fig.tight_layout()
     st.pyplot(fig)
+
+def plot_count_genes_on_chromosomes(genes: list[str], ref: pd.DataFrame):
+    # infer chromosomes
+    chroms = list(ref[ref['Gene stable ID'].isin(genes)]['Chromosome/scaffold name'])
+    # create dataframe for heatmap
+    df = pd.DataFrame({'chrom': chroms, 'gene': genes})
+    df = df.groupby('chrom', sort=False).agg(lambda x: ', '.join(x))
+    df['chrom'] = df.index
+    df['Number of genes / chromosome'] = df['gene'].map(lambda x: count_gene_names(x))
+    df['Number of genes / chromosome'] = df['Number of genes / chromosome'].astype('category')
+    df['Chromosome, genes'] = df['chrom'].str.cat(df['gene'], sep=':\n')
+    df['Chromosome, genes'] = pd.Series(['Chromosome'] * df.shape[0], index=df.index).str.cat(df['Chromosome, genes'], sep=' ')
+    df.index = df['Chromosome, genes']
+    df.drop(columns=['chrom', 'gene', 'Chromosome, genes'], inplace=True)
+
+    # create figure explicitly
+    fig, ax = plt.subplots(figsize=(6, max(1, 0.5 * len(df.index))))
+    sns.heatmap(
+        df,
+        annot=True,
+        cmap=sns.color_palette("crest"),
+        linewidth=1,
+        cbar=False,
+        annot_kws={"size": 14},
+        ax=ax
+    )
+    ax.tick_params(left=False, bottom=False)
+    fig.tight_layout()
+    st.pyplot(fig)
+
+def count_gene_names(gene_names):
+    return len(gene_names.split(','))

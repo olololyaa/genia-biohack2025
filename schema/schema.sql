@@ -7,6 +7,12 @@ CREATE TABLE gene (
     ensembl_gene_id TEXT not null,
     chromosome_name TEXT,
     description TEXT,
+    strand TEXT,
+    transcript_count INTEGER,
+    gene_start INTEGER,
+    gene_end INTEGER,
+    unique_exon_count INTEGER,
+    gene_length INTEGER,
     UNIQUE(ensembl_gene_id)
 );
 DROP table if exists protein_atlas_expression;
@@ -53,6 +59,16 @@ CREATE TABLE gtex_gene_stats (
     UNIQUE(gene_id)
 );
 
+
+DROP TABLE IF EXISTS gtex_tissue_tpm;
+CREATE TABLE gtex_tissue_tpm (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gene_id INTEGER NOT NULL,
+    tissue TEXT NOT NULL,
+    TPM REAL,
+    FOREIGN KEY(gene_id) REFERENCES gene(id) ON DELETE CASCADE
+);
+
 DROP TABLE IF EXISTS drugs_dgi;
 CREATE TABLE drugs_dgi (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +102,29 @@ CREATE TABLE drugs_central (
     UNIQUE(gene_id)
 );
 
+-- gnomAD constraint metrics (combined versions v2.1.1 & v4.1)
+DROP TABLE IF EXISTS gnomad;
+CREATE TABLE gnomad (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gene_id INTEGER NOT NULL,
+    mis_oe_v2_1_1 REAL,
+    mis_mu_v2_1_1 REAL,
+    mis_pphen_oe_v2_1_1 REAL,
+    lof_mu_v2_1_1 REAL,
+    lof_pLI_v2_1_1 REAL,
+    lof_oe_v2_1_1 REAL,
+    mis_z_score_v2_1_1 REAL,
+    lof_z_score_v2_1_1 REAL,
+    lof_oe_v4_1 REAL,
+    lof_pLI_v4_1 REAL,
+    lof_z_raw_v4_1 REAL,
+    mis_oe_v4_1 REAL,
+    mis_z_raw_v4_1 REAL,
+    mis_pphen_oe_v4_1 REAL,
+    FOREIGN KEY(gene_id) REFERENCES gene(id) ON DELETE CASCADE,
+    UNIQUE(gene_id)
+);
+
 -- Indexes for better query performance
 CREATE INDEX idx_gene_hgnc_symbol ON gene(hgnc_symbol);
 CREATE INDEX idx_gene_ensembl_gene_id ON gene(ensembl_gene_id);
@@ -96,3 +135,4 @@ CREATE INDEX idx_cdose_cnv_type ON CDoseMap(cnv_type);
 CREATE INDEX idx_cdose_cytoband ON CDoseMap(cytoband);
 CREATE INDEX idx_drugs_dgi ON drugs_dgi(gene_id);
 CREATE INDEX idx_drugs_central ON drugs_central(gene_id);
+CREATE INDEX idx_gnomad_gene ON gnomad(gene_id);
