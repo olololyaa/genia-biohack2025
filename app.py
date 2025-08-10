@@ -1,9 +1,14 @@
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import sqlite3
 from typing import Optional
 import numpy as np 
-from plots import create_violin_plot
+from plots import create_violin_plot, plot_count_genes_on_chromosomes
+from sklearn.preprocessing import StandardScaler
+from umap import UMAP
+import matplotlib.pyplot as plt
+
 
 st.set_page_config(page_title="GIA", layout="centered", page_icon="🧬",)
 st.title("Gene Insights & Analysis")
@@ -121,6 +126,57 @@ def load_gtex_data(ensembl_ids: list[str] = None) -> Optional[pd.DataFrame]:
         st.error(f"Failed to load GTEx data: {e}")
         return None
 
+@st.cache_data(show_spinner=False)
+def load_gtex_tpm(ensembl_ids: list[str] | None = None,
+                  tissues: list[str] | None = None,
+                  pivot: bool = False) -> Optional[pd.DataFrame]:
+    """Load per-tissue TPM values from gtex_tissue_tpm.
+
+    Args:
+        ensembl_ids: Optional list of Ensembl gene IDs to filter (version-insensitive).
+        tissues: Optional list of tissue names to filter.
+        pivot: If True, return wide format (rows = genes, columns = tissues). Otherwise long.
+
+    Returns:
+        DataFrame with columns (ensembl_gene_id, tissue, TPM) or pivoted wide form, or None on failure.
+    """
+    conn = get_conn()
+    if not conn:
+        return None
+    where_clauses = []
+    params: list = []
+    if ensembl_ids:
+        cleaned = [e.split('.')[0].strip() for e in ensembl_ids if e]
+        if cleaned:
+            placeholders = ",".join(["?"] * len(cleaned))
+            where_clauses.append(f"g.ensembl_gene_id IN ({placeholders})")
+            params.extend(cleaned)
+    if tissues:
+        t_clean = [t.strip() for t in tissues if t]
+        if t_clean:
+            placeholders = ",".join(["?"] * len(t_clean))
+            where_clauses.append(f"t.tissue IN ({placeholders})")
+            params.extend(t_clean)
+    where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    query = (
+        "SELECT g.ensembl_gene_id, t.tissue, t.TPM "
+        "FROM gtex_tissue_tpm t JOIN gene g ON g.id = t.gene_id" + where_sql
+    )
+    try:
+        df = pd.read_sql_query(query, conn, params=params)
+        if df.empty:
+            return df
+        # Ensure deterministic ordering
+        df = df.sort_values(["ensembl_gene_id", "tissue"]).reset_index(drop=True)
+        if pivot:
+            wide = df.pivot_table(index="ensembl_gene_id", columns="tissue", values="TPM")
+            wide = wide.reset_index().rename_axis(None, axis=1)
+            return wide
+        return df
+    except Exception as e:
+        st.error(f"Failed to load GTEx TPM data: {e}")
+        return None
+
 # Replace top-level UI with tabbed layout
 gene_tab, about_tab = st.tabs(["Gene Search", "About"])
 
@@ -208,11 +264,10 @@ with gene_tab:
                     #ensemble version ids are provided within the Name column
                     # split values in the name column by "." and leave only first element
                     #enriched_gene_stats['Name'] = enriched_gene_stats['Name'].str.split(".").str[0]
-                    st.caption("Sample synthetic data (not real expression).")
-                    st.caption("Two plots will be shown: one for the selected gene(s) and another for the selected feature group.")
+                    st.caption("Two plots will be shown: one for the selected gene(s) and another for all other genes.")
                     features = ["Feature 1", "Feature 2"] # TODO: define features from other datasets, for example is this gene is drug target or not
-                    selected_feature = st.selectbox("Select a feature group", options=features)
-                    st.caption("Note: Data for the selected genes will be excluded from the second plot, even if they share the same feature.")
+                    #selected_feature = st.selectbox("Select a feature group", options=features)
+                    #st.caption("Note: Data for the selected genes will be excluded from the second plot, even if they share the same feature.")
                     stats = ["mean", "median", "std", "tau", "n_zero", "n_below_low", "n_above_low", "n_above_high"]
                     for stat in stats:
                         create_violin_plot(gene_symbols_for_plot, plot_df=enriched_gene_stats, stat=stat, features=features)
@@ -227,7 +282,37 @@ with gene_tab:
                 selected_genes_ens = sel_rows['ensembl_gene_id']
                 plot_count_genes_on_chromosomes(selected_genes_ens, db_paralogues_mouse)
 
+            with st.expander("UMAP"):
+                columns_for_pca = ['lof.oe_v4.1', 'mis_pphen.oe_v4.1', 'Transcript count',
+       'Gene length (bp)', 'Unique exon count',
+       '%id. query gene identical to target Mouse gene',
+       'Mouse Gene-order conservation score', 'Gene % GC content',
+       'N complexes', 'go_id_num', 'pfam_num']
 
+                for_cor_df = pd.read_csv("gene_info/for_cor_df.csv") # TODO this definitely needs refactoring
+                #scaler = StandardScaler()
+                #df_sc = scaler.fit_transform(for_cor_df[columns_for_pca].dropna())
+
+
+                #umap = UMAP(n_components=2, metric='cosine', n_neighbors=10, min_dist=0.05) #TODO Put umap to the db
+                #X_umap = umap.fit_transform(df_sc)
+                
+                #read numpy array:
+                X_umap = np.load("gene_info/X_umap.npy")
+
+                plt.figure(figsize=(10, 6))
+                scatter = plt.scatter(
+                    X_umap[:, 0],
+                    X_umap[:, 1],
+                    c=for_cor_df.loc[for_cor_df[columns_for_pca].notna().all(axis=1), 'shannon_entropy'],
+                    cmap="spring", alpha = 0.1)
+
+                plt.colorbar(scatter, label='Median')
+                plt.title('UMAP')
+                plt.xlabel("UMAP-1")
+                plt.ylabel("UMAP-2")
+                # show plot in the Streamlit app
+                st.pyplot(plt)
 with about_tab:
     try:
         with open("APP_README.md", "r", encoding="utf-8") as f:
